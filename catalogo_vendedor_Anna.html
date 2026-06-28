@@ -5534,7 +5534,17 @@ document.addEventListener('keydown', function(e) {
     if(cart.length === 0){ cont.innerHTML = ''; return; }
     var noCarrinho = {};
     cart.forEach(function(i){ noCarrinho[i.nome] = 1; });
-    var seen = {}, uniq = [];
+    var catDe = {};
+    (function(){
+      var atualCat = '';
+      document.querySelectorAll('.categoria-header, .produto-card').forEach(function(n){
+        if(n.classList.contains('categoria-header')){ atualCat = n.id || ((n.querySelector('h2')||{}).textContent || ''); }
+        else { var hh = n.querySelector('.card-body h4'); if(hh){ var nm = hh.textContent.trim(); if(!(nm in catDe)){ catDe[nm] = atualCat; } } }
+      });
+    })();
+    var catsCarrinho = {};
+    cart.forEach(function(it){ if(catDe[it.nome]){ catsCarrinho[catDe[it.nome]] = 1; } });
+    var seen = {}, mesma = [], outras = [];
     document.querySelectorAll('.produto-card').forEach(function(card){
       var h4 = card.querySelector('.card-body h4'); if(!h4) return;
       var nome = h4.textContent.trim();
@@ -5542,10 +5552,12 @@ document.addEventListener('keydown', function(e) {
       seen[nome] = 1;
       var marcaEl = card.querySelector('.card-body .marca');
       var img = card.querySelector('.img-wrap img');
-      uniq.push({ nome: nome, marca: marcaEl ? marcaEl.textContent.trim() : '', img: img ? img.getAttribute('src') : '' });
+      var item = { nome: nome, marca: marcaEl ? marcaEl.textContent.trim() : '', img: img ? img.getAttribute('src') : '' };
+      if(catsCarrinho[catDe[nome]]){ mesma.push(item); } else { outras.push(item); }
     });
-    for(var i = uniq.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = uniq[i]; uniq[i] = uniq[j]; uniq[j] = t; }
-    pick = uniq.slice(0, 3);
+    function emb(a){ for(var i = a.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } }
+    emb(mesma); emb(outras);
+    pick = mesma.concat(outras).slice(0, 3);
     if(pick.length === 0){ cont.innerHTML = ''; return; }
     var html = '<div class="cs-titulo">Leve tambem</div>';
     pick.forEach(function(p, i){
