@@ -4699,6 +4699,7 @@
       <p>Nenhum produto adicionado ainda.<br>Clique em <strong>+ Adicionar</strong> nos produtos.</p>
     </div>
     <ul class="carrinho-lista" id="carrinhoLista"></ul>
+    <div class="carrinho-sugestoes" id="carrinhoSugestoes"></div>
   </div>
   <div class="carrinho-footer" id="carrinhoFooter" style="display:none">
     <div class="carrinho-total-linha">
@@ -5490,6 +5491,7 @@ document.addEventListener('keydown', function(e) {
     if(window.RC && RC.adicionar){ for(var i = 0; i < atual.qtd; i++){ RC.adicionar(atual.nome, atual.marca); } }
     addBtn.classList.add('ok');
     addBtn.innerHTML = ICON_OK + ' Adicionado (' + atual.qtd + ')';
+    setTimeout(function(){ window.fecharProduto(); }, 700);
   };
   window.addEventListener('popstate', function(){ if(overlay.classList.contains('ativo')){ esconder(); } });
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ window.fecharProduto(); } });
@@ -5501,6 +5503,78 @@ document.addEventListener('keydown', function(e) {
     window.abrirProduto(card);
   });
   resetAddBtn();
+})();
+</script>
+
+
+<!-- ============================================================
+     CROSS-SELL no carrinho ("Leve tambem")
+     ============================================================ -->
+<style>
+  .carrinho-sugestoes { margin-top: 16px; }
+  .cs-titulo { font-size: 0.8rem; font-weight: 800; color: var(--tiffany-dark); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px; padding-top: 14px; border-top: 1px dashed #ddd; }
+  .cs-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+  .cs-img { width: 46px; height: 46px; flex-shrink: 0; border: 1px solid #eee; border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .cs-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .cs-info { flex: 1; min-width: 0; }
+  .cs-marca { font-size: 0.62rem; color: var(--tiffany-dark); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .cs-nome { font-size: 0.8rem; color: #333; font-weight: 600; line-height: 1.25; }
+  .cs-add { flex-shrink: 0; background: var(--accent); color: var(--tiffany-dark); border: 1px solid var(--tiffany); border-radius: 20px; padding: 7px 12px; font-size: 0.74rem; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 0.15s, color 0.15s; }
+  .cs-add:hover { background: var(--tiffany); color: #fff; }
+</style>
+<script>
+(function(){
+  var cont = document.getElementById('carrinhoSugestoes');
+  var pick = [];
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function lerCarrinho(){ try { return JSON.parse(localStorage.getItem('rc_carrinho') || '[]'); } catch(e){ return []; } }
+  function renderSugestoes(){
+    if(!cont) return;
+    var cart = lerCarrinho();
+    if(cart.length === 0){ cont.innerHTML = ''; return; }
+    var noCarrinho = {};
+    cart.forEach(function(i){ noCarrinho[i.nome] = 1; });
+    var seen = {}, uniq = [];
+    document.querySelectorAll('.produto-card').forEach(function(card){
+      var h4 = card.querySelector('.card-body h4'); if(!h4) return;
+      var nome = h4.textContent.trim();
+      if(noCarrinho[nome] || seen[nome]) return;
+      seen[nome] = 1;
+      var marcaEl = card.querySelector('.card-body .marca');
+      var img = card.querySelector('.img-wrap img');
+      uniq.push({ nome: nome, marca: marcaEl ? marcaEl.textContent.trim() : '', img: img ? img.getAttribute('src') : '' });
+    });
+    for(var i = uniq.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = uniq[i]; uniq[i] = uniq[j]; uniq[j] = t; }
+    pick = uniq.slice(0, 3);
+    if(pick.length === 0){ cont.innerHTML = ''; return; }
+    var html = '<div class="cs-titulo">Leve tambem</div>';
+    pick.forEach(function(p, i){
+      html += '<div class="cs-item">' +
+        '<div class="cs-img">' + (p.img ? '<img src="' + esc(p.img) + '" alt="" loading="lazy">' : '') + '</div>' +
+        '<div class="cs-info"><div class="cs-marca">' + esc(p.marca) + '</div><div class="cs-nome">' + esc(p.nome) + '</div></div>' +
+        '<button class="cs-add" type="button" onclick="window._csAdd(' + i + ')">+ Adicionar</button>' +
+      '</div>';
+    });
+    cont.innerHTML = html;
+  }
+  window._csAdd = function(i){
+    var p = pick[i];
+    if(p && window.RC && RC.adicionar){ RC.adicionar(p.nome, p.marca); }
+  };
+  // Hook into cart open + changes so suggestions stay fresh
+  function wrap(nome, fn){
+    var orig = window[nome];
+    if(typeof orig !== 'function'){ return; }
+    window[nome] = function(){ var r = orig.apply(this, arguments); fn(); return r; };
+  }
+  wrap('abrirCarrinho', renderSugestoes);
+  wrap('limparCarrinho', renderSugestoes);
+  if(window.RC){
+    ['adicionar','remover'].forEach(function(m){
+      var orig = RC[m];
+      if(typeof orig === 'function'){ RC[m] = function(){ var r = orig.apply(RC, arguments); renderSugestoes(); return r; }; }
+    });
+  }
 })();
 </script>
 
